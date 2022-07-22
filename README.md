@@ -9,9 +9,10 @@ If the provided code helps your research, please cite the following articles on 
 1.  ```
     L. Piotrowsky, S. Kueppers, T. Jaeschke, N. Pohl,
     "Distance Measurement Using mmWave Radar: Micron Accuracy at Medium Range,"
-    
-    ... under review ...
+    accepted for publication in IEEE Transactions on Microwave Theory and Techniques,
+    Jul. 2022.
     ```
+    [Accepted version](https://www.researchgate.net/publication/362175118_Distance_Measurement_Using_mmWave_Radar_Micron_Accuracy_at_Medium_Range)
 2.  ```
     L. Piotrowsky, J. Barowski and N. Pohl,
     "Near-Field Effects on Micrometer Accurate Ranging With Ultra-Wideband mmWave Radar,"
