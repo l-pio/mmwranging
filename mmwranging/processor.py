@@ -4,7 +4,7 @@ from cached_property import cached_property
 from contextlib import suppress
 
 from .estimator import basic_estimator, qi_estimator, qips_estimator
-from .refractiveindex import mpm93, smith_weintraub1953, eq1, eq2, eq3, eq_dband
+from .refractiveindex import mpm93, smith_weintraub1953, eq1, eq2, eq3
 from .nearfieldcorrection import approximate_model, gen_parametric_model
 
 
@@ -53,7 +53,6 @@ class Processor:
         self.co2_conc_data = None
         self.tau_mem = None
         self.phi_mem = None
-        self.snr_fd_db_mem = 300  # Historical data used for Wiener deconvolution. Initial value: 300 dB.
         self.delta_phi = None
 
     def n_to_if(self, n):
@@ -66,13 +65,7 @@ class Processor:
 
     def n_to_t(self, n):
         """Convert # to time delay in time-domain."""
-        # Fit # to time-centered axis
-        if self.td_length % 2 == 0:
-            n_tc = n - self.td_length * (n >= self.td_length // 2)
-        else:
-            n_tc = n - self.td_length * (n >= (self.td_length + 1) // 2)
-        # Compute t
-        t = n_tc / self.sweep_bandwidth * (self.fd_length - 1) / self.td_length
+        t = n / self.sweep_bandwidth * (self.fd_length - 1) / self.td_length
         return t
 
     def t_to_n(self, t):
@@ -111,7 +104,7 @@ class Processor:
 
     @property
     def freq_axis(self):
-        """Frequency axis for data in frequency-domain."""
+        """Frequency axis for data in frequency-domain (passband)."""
         return self.n_to_f(np.arange(self.fd_length))
 
     @property
@@ -139,8 +132,9 @@ class Processor:
                 'IF': lambda: fd / self.rf_path_response,
                 'AP': lambda: fd * np.abs(self.rf_path_response) / self.rf_path_response,
                 'MF': lambda: fd * np.conj(self.rf_path_response),
-                'WF': lambda: (fd * np.conj(self.rf_path_response) /
-                               (np.abs(self.rf_path_response)**2 + 10**(-self.snr_fd_db_mem / 10))),  # Avoidance of 1/0
+                # Note: WF is not yet implemented! Window function etc. must be deactivated for gated_fd_data()
+                # 'WF': lambda: (fd * np.conj(self.rf_path_response) /
+                #               (np.abs(self.rf_path_response)**2 + 10**(-self.snr_fd_db / 10))),
             }[self.rf_path_filter]()
 
         # Centered IFFT
@@ -167,7 +161,7 @@ class Processor:
             if self.sl_downchirps is not None:
                 td[self.sl_downchirps] *= np.conj(h)  # Inverse phase related to upchirps
 
-        # Filter of IF-path response
+        # Filter IF-path frequency response
         if self.if_path_response is not None:
             h = {
                 None: lambda: 1,
@@ -313,7 +307,6 @@ class Processor:
     def snr_fd(self):
         """Measured signal-to-noise ratio per sample in time-gated frequency-domain data."""
         snr = self.power_fd / self.noise_fd
-        self.snr_fd_db_mem = snr  # Store historical value of snr_fd_db for Wiener deconvolution
         return snr
 
     @cached_property
@@ -343,6 +336,22 @@ class Processor:
         }[self.estimator]()
         tau = self.n_to_t(n)
 
+        # Apply near-field correction
+        if self.nearfield_correction is not None:
+            if 'rtt_offset' in self.nearfield_correction:
+                rtt_uncompensated = tau - self.nearfield_correction['rtt_offset']
+            else:
+                rtt_uncompensated = tau
+            rtt_distance_uncompensated = rtt_uncompensated / 2 * C0 / self.refractive_index
+            tau = tau - self.get_pulse_position_variation(rtt_distance_uncompensated)
+            phi = phi - self.get_pulse_phase_variation(rtt_distance_uncompensated)
+
+        # Unwrap phase in case of a compensated IF path phase response
+        if self.if_path_filter in ['amp+phase', 'phase']:
+            phi_tau = -tau * 2 * np.pi * self.center_freq
+            phi = phi + np.round((phi_tau - phi) / (2 * np.pi)) * 2 * np.pi  # Unwrap on 2pi interval
+            self.delta_phi = phi - phi_tau  # Deviation of phase between pulse phase and pulse position measurement
+
         # Combine up- and downchirps
         if self.use_triangular_modulation:
             if self.use_sweep_interleaving:
@@ -360,22 +369,15 @@ class Processor:
                 tau = (tau[self.sl_upchirps] + tau[self.sl_downchirps]) / 2
                 phi = (phi[self.sl_upchirps] + phi[self.sl_downchirps]) / 2
 
-        # Apply near-field correction
-        if self.nearfield_correction is not None:
-            if 'rtt_offset' in self.nearfield_correction:
-                rtt_uncompensated = tau - self.nearfield_correction['rtt_offset']
-            else:
-                rtt_uncompensated = tau
-            rtt_distance_uncompensated = rtt_uncompensated / 2 * C0 / self.refractive_index
-            tau = tau - self.get_pulse_position_variation(rtt_distance_uncompensated)
-            phi = phi - self.get_pulse_phase_variation(rtt_distance_uncompensated)
-
-        # "Phase unwrapping"
-        if self.use_phase:
+        # Unwrap phase in case of an uncompensated IF path phase response
+        if self.if_path_filter not in ['amp+phase', 'phase']:
             phi_tau = -tau * 2 * np.pi * self.center_freq
-            phi_uw = phi + np.round((phi_tau - phi) / np.pi) * np.pi
-            self.delta_phi = phi_uw - phi_tau  # Deviation of phase between pulse phase and pulse position measurement
-            tau = -phi_uw / (2 * np.pi * self.center_freq)
+            phi = phi + np.round((phi_tau - phi) / np.pi) * np.pi  # Unwrap on 1pi interval
+            self.delta_phi = phi - phi_tau  # Deviation of phase between pulse phase and pulse position measurement
+
+        # Use pulse phase instead of pulse position
+        if self.use_phase:
+            tau = -phi / (2 * np.pi * self.center_freq)
 
         return tau
 
@@ -395,8 +397,7 @@ class Processor:
             'EQ1': lambda: eq1(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
             'EQ2': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
             'EQ3': lambda: eq3(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
-            'dband': lambda: eq_dband(self.center_freq, self.temp_data, self.press_data, self.hum_data,
-                                      self.co2_conc_data),
+            'dband': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
         }[self.refractive_index_model]()
         return 1 + refractivity * 1E-6
 
@@ -406,7 +407,7 @@ class Processor:
         var = {
             'AM': lambda: (approximate_model(rtt_distance, params['d1'], params['d2'])
                            * 2 * self.refractive_index / C0),
-            'PM': lambda: (gen_parametric_model(rtt_distance, params['k1'], params['k2'])
+            'PM': lambda: (gen_parametric_model(rtt_distance, params['a_tot'], params['r_off'])
                            * 2 * self.refractive_index / C0),
             'func': lambda: params['pulse_position_variation_func'](rtt_distance),
         }[params['mode']]()
@@ -418,7 +419,7 @@ class Processor:
         var = {
             'AM': lambda: (-approximate_model(rtt_distance, params['d1'], params['d2'])
                            * 4 * np.pi * self.center_freq * self.refractive_index / C0),
-            'PM': lambda: (-gen_parametric_model(rtt_distance, params['k1'], params['k2'])
+            'PM': lambda: (-gen_parametric_model(rtt_distance, params['a_tot'], params['r_off'])
                            * 4 * np.pi * self.center_freq * self.refractive_index / C0),
             'func': lambda: params['pulse_phase_variation_func'](rtt_distance),
         }[params['mode']]()
@@ -442,7 +443,7 @@ class Processor:
         if tof0 is None:
             tof0 = np.mean(self.tof)  # Compute TOF as mean TOF of measurements
         fd = fd * np.exp(1j * 2 * np.pi * self.freq_axis * tof0)
-        fd = fd / np.std(np.real(fd)) / 2  # Normalize power
+        fd = fd / np.sqrt(np.mean(np.abs(fd)**2))  # Normalize
         self.rf_path_response = fd
         # Restore old state
         self.window = window

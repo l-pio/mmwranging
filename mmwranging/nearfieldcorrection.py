@@ -7,9 +7,9 @@ def approximate_model(distance, d1, d2):
     return (d1**2 + d2**2) / (16 * distance)
 
 
-def gen_parametric_model(distance, k1, k2):
+def gen_parametric_model(distance, a_tot, r_off):
     """Calculate the distance variation using the generalized parametric model."""
-    return k1 / (2 * np.pi * (distance + k2))
+    return a_tot / (4 * np.pi * (distance + r_off))
 
 
 def gen_parametric_model_fit(r, data, max_deviation):

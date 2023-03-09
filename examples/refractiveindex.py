@@ -40,9 +40,9 @@ if __name__ == '__main__':
         _freqs = freqs[freqs <= 50E9]
         refractivity_sw = mmwranging.smith_weintraub1953(temp, press, _rel_hum)
         p = axs[1].plot(_freqs / 1E9, refractivity_sw * np.ones(_freqs.shape), ls='--', color=p[-1].get_color())
-        # D-band equation
+        # D-band equation (EQ2)
         _freqs = freqs[(freqs >= 110E9) * (freqs <= 170E9)]
-        refractivity_dband = mmwranging.eq_dband(_freqs, temp, press, _rel_hum)
+        refractivity_dband = mmwranging.eq2(_freqs, temp, press, _rel_hum)
         axs[1].plot(_freqs / 1E9, refractivity_dband, ls='-.', color=p[-1].get_color())
 
     axs[1].set_title('Refractive index of moist air at %d K, %.2f mbar, %s%%RH' % (

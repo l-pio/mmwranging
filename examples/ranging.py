@@ -22,12 +22,16 @@ if __name__ == '__main__':
     nfc_model = {
         None: lambda: None,
         'AM': lambda: dict(mode='AM', d1=36E-3, d2=target_diameter / 1E3, rtt_offset=500E-12),
+        'PM': lambda: dict(
+            mode='PM',
+            a_tot={20: 12.4E-4, 30: 16.6E-4, 40: 22.2E-4, 50: 31.2E-4}[target_diameter],
+            r_off={20: -10.2E-2, 30: -6.1E-2, 40: 0.8E-2, 50: 11.9E-2}[target_diameter]),
         'SM': lambda: dict(
             mode='func',
             pulse_position_variation_func=interp1d(nfcsim_data['r'] - 20E-3, nfcsim_data['pulse_position_variation']),
             pulse_phase_variation_func=interp1d(nfcsim_data['r'] - 20E-3, nfcsim_data['pulse_phase_variation']),
             rtt_offset=700E-12)
-    }['SM']()  # None: no near-field correction / 'AM': approximate model / 'SM': simulation model
+    }['PM']()  # None: no near-field correction / 'AM': approx. model / 'PM': parametric model / 'SM': simulation model
 
     # Initialize mmwRanging processor
     proc = mmwranging.Processor(
@@ -44,14 +48,20 @@ if __name__ == '__main__':
         window='hann',  # Set window function
         refractive_index_model='dband',  # Set refractive-index model
         compensate_residual_phase_term=False,  # Compensate tau^2 residual phase term (unnecessary for triangular mod.)
-        if_path_filter=None,  # Compensate if-path response (unnecessary for triangular mod.)
+        if_path_filter='phase',  # Compensate if-path frequency response
         nearfield_correction=nfc_model,  # Set model for near-field correction
         roi=[0.4 * 2 / 3E8, 5.65 * 2 / 3E8]  # Range-of-interest for peak search (sec)
         )
 
+    # Load IF path filter frequency response
+    ifpath_data = np.genfromtxt('./ifpath_data/if_path_sim_2piSENSE.txt', delimiter=',', skip_header=1).T
+    proc.load_if_path_response(ifpath_data[0], 10**(ifpath_data[1] / 20) * np.exp(1j * ifpath_data[2] / 180 * np.pi))
+
     # Process data
     if proc.use_sweep_interleaving:
         dist = np.empty([ifdata.shape[0], ifdata.shape[1] - 1])
+    else:
+        dist = np.empty([ifdata.shape[0], ifdata.shape[1] // 2])
     snr = np.empty(ifdata.shape[0])
     td_data = np.empty(ifdata.shape * np.array([1, 1, 0]) + np.array([0, 0, proc.td_length]))
 

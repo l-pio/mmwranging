@@ -54,8 +54,8 @@ def smith_weintraub1953(temp, press, hum):
     return five_term_eq(0, temp, press, hum, 0, k)
 
 
-def eq_dband(freq, temp, press, hum, co2_conc=None):
-    """Compute the mmWave refractivity of atmosphere using the D-band Equation (110...170 GHz).
+def eq1(freq, temp, press, hum, co2_conc=None):
+    """Compute the mmWave refractivity of atmosphere using Equation 1 (75...110 GHz).
 
     Parameters:
     - freq: frequency (Hz)
@@ -68,30 +68,12 @@ def eq_dband(freq, temp, press, hum, co2_conc=None):
     - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
-    k = [0.7756, 0.3656, 3810, 1.335, 1.862E-12]
-    return five_term_eq(freq, temp, press, hum, co2_conc, k)
-
-
-def eq1(freq, temp, press, hum, co2_conc=None):
-    """Compute the mmWave refractivity of atmosphere using Equation 1 (70...110 GHz).
-
-    Parameters:
-    - freq: frequency (Hz)
-    - temp: temperature (K)
-    - press: pressure (Pa)
-    - hum: rel. humidity (%)
-    - co2_conc: carbon dioxide concentration (0...1)
-
-    Notes:
-    - Optimized to: 0.8...1.2 bar, 0...50°C, 0...100% RH.
-    """
-    co2_conc = 400E-6 if co2_conc is None else co2_conc
-    k = [0.7753, 0.5808, 3767, 1.335, 1.227E-12]
+    k = [0.7754, 0.5786, 3768, 1.335, 1.181E-12]
     return five_term_eq(freq, temp, press, hum, co2_conc, k)
 
 
 def eq2(freq, temp, press, hum, co2_conc=None):
-    """Compute the mmWave refractivity of atmosphere using Equation 2 (120...170 GHz).
+    """Compute the mmWave refractivity of atmosphere using Equation 2 (110...170 GHz).
 
     Parameters:
     - freq: frequency (Hz)
@@ -101,10 +83,10 @@ def eq2(freq, temp, press, hum, co2_conc=None):
     - co2_conc: carbon dioxide concentration (0...1)
 
     Notes:
-    - Optimized to: 0.8...1.2 bar, 0...50°C, 0...100% RH.
+    - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
-    k = [0.7756, 0.3234, 3813, 1.335, 2.025E-12]
+    k = [0.7756, 0.3656, 3808, 1.335, 1.862E-12]
     return five_term_eq(freq, temp, press, hum, co2_conc, k)
 
 
@@ -119,10 +101,10 @@ def eq3(freq, temp, press, hum, co2_conc=None):
     - co2_conc: carbon dioxide concentration (0...1)
 
     Notes:
-    - Optimized to: 0.8...1.2 bar, 0...50°C, 0...100% RH.
+    - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
-    k = [0.7756, -0.3866, 3931, 1.335, 3.299E-12]
+    k = [0.7757, -0.3928, 3931, 1.335, 3.323E-12]
     return five_term_eq(freq, temp, press, hum, co2_conc, k)
 
 

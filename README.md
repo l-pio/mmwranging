@@ -1,7 +1,7 @@
 # mmwRanging
-A Python package for linear distance measurement using ultra-wideband (UWB) millimeter-wave (mmWave) radar, based on
-frequency modulated continuous wave (FMCW) technology. The package provides micrometer accuracy, and nanometer-level
-jitter at medium range (>1m). It is particularly suitable for use with 2pi-labs' 2piSENSE radar systems.
+ A Python package for distance measurement with ultra-wideband mmWave radar, based on FMCW technique. The package may
+ provide micron accuracy and nanometer-level jitter at a medium range (> 1m). It is particularly suitable for use
+ with 2pi-Labs's 2piSENSE radar systems.
 
 ## Citations
 If the provided code helps your research, please cite the following articles on which the package is based:
