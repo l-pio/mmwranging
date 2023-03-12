@@ -65,19 +65,11 @@ class Processor:
 
     def n_to_t(self, n):
         """Convert # to time delay in time-domain."""
-        t = n / self.sweep_bandwidth * (self.fd_length - 1) / self.td_length
-        return t
+        return n / self.sweep_bandwidth * (self.fd_length - 1) / self.td_length
 
     def t_to_n(self, t):
         """Convert time delay to # in time-domain."""
-        # Convert t to # in time-centered domain
-        n_tc = t * self.sweep_bandwidth / (self.fd_length-1) * self.td_length
-        # Fit # to 0 ... N-1
-        if self.td_length % 2 == 0:
-            n = n_tc + self.td_length * (n_tc >= self.td_length // 2)
-        else:
-            n = n_tc + self.td_length * (n_tc >= (self.td_length + 1) // 2)
-        return n
+        return t * self.sweep_bandwidth / (self.fd_length-1) * self.td_length
 
     def time_gating(self, td_data, gate):
         """Gate time-domain data within gate = [time_min, time_max]."""
