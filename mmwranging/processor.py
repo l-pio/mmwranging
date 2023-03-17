@@ -3,7 +3,7 @@ from scipy.signal import windows
 from cached_property import cached_property
 from contextlib import suppress
 
-from .estimator import basic_estimator, qi_estimator, qips_estimator
+from .estimator import basic_estimator, qi_estimator, qips_estimator, zoom_estimator
 from .refractiveindex import mpm93, smith_weintraub1953, eq1, eq2, eq3
 from .nearfieldcorrection import approximate_model, gen_parametric_model
 
@@ -325,7 +325,10 @@ class Processor:
             'basic': lambda: basic_estimator(self.td_data_abs, self.td_data_rad, roi),
             'QI': lambda: qi_estimator(self.td_data_abs, self.td_data_rad, roi),
             'QIPS': lambda: qips_estimator(self.window, self.td_data_abs, self.td_data_rad, roi),
-        }[self.estimator]()
+            'zoom': lambda: zoom_estimator(self.fd_data,
+                                           roi,
+                                           self.estimator.get('n_rec', 1) if type(self.estimator) is dict else 1),
+        }[self.estimator.get('mode') if type(self.estimator) is dict else self.estimator]()
         tau = self.n_to_t(n)
 
         # Apply near-field correction

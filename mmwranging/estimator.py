@@ -1,6 +1,6 @@
 import numpy as np
 from math import floor, ceil
-from scipy.signal import windows
+from scipy.signal import windows, zoom_fft
 from scipy.optimize import curve_fit
 
 
@@ -116,3 +116,25 @@ def compute_qips_parameter(window, fft_length=8192, n_length=1000):
     (p_est,), _ = curve_fit(func, n_vals, n_vals, bounds=(1E-5, 1-1E-5))  # 0 < p < 1
 
     return p_est
+
+
+def zoom_estimator(fd_data, roi, n_rec=0):
+    """Estimate pulse position and pulse phase in recursively zoomed radar echo."""
+    if np.ndim(fd_data) == 1:  # Single-dimensional array
+        # Compute "centered" zoom IFFT
+        size = fd_data.shape[-1]
+        td = zoom_fft(fd_data, [-roi[0], -roi[1]], fs=size) / size
+        td = td * np.exp(-1j * np.pi * np.linspace(roi[0], roi[1], size) * (size - 1) / size)
+        # Peak detection within resolution cell
+        res = (roi[1] - roi[0]) / (size - 1)
+        n = np.argmax(np.abs(td))
+        phi = np.angle(td[n])
+        n = n * res + roi[0]
+        # Recursive zoom
+        if n_rec > 0:
+            return zoom_estimator(fd_data, [n - res, n + res], n_rec - 1)
+        else:
+            return np.array([n, phi])
+
+    else:  # Multi-dimensional array: recursion
+        return np.array([zoom_estimator(_input, roi, n_rec) for _input in fd_data]).T
