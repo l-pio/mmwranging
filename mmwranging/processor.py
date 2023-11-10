@@ -5,7 +5,8 @@ from contextlib import suppress
 
 from .estimator import basic_estimator, qi_estimator, qips_estimator, zoom_estimator
 from .refractiveindex import mpm93, smith_weintraub1953, eq1, eq2, eq3
-from .nearfieldcorrection import approximate_model, gen_parametric_model
+from .nearfieldcorrection import approximate_model, approximate_model_2_phase, approximate_model_2_position,\
+    gen_parametric_model
 
 
 C0 = 299792458
@@ -400,10 +401,10 @@ class Processor:
         """Return of pulse position variation due to near-field effects of free-space wave propagation."""
         params = self.nearfield_correction
         var = {
-            'AM': lambda: (approximate_model(rtt_distance, params['d1'], params['d2'])
-                           * 2 * self.refractive_index / C0),
-            'PM': lambda: (gen_parametric_model(rtt_distance, params['a_tot'], params['r_off'])
-                           * 2 * self.refractive_index / C0),
+            'AM': lambda: approximate_model(rtt_distance, params['d1'], params['d2']) * 2 / C0,
+            'AM2': lambda: approximate_model_2_position(
+                rtt_distance, params['d1'], params['d2'], 2 * np.pi * self.center_freq / C0),
+            'PM': lambda: gen_parametric_model(rtt_distance, params['a_tot'], params['r_off']) * 2 / C0,
             'func': lambda: params['pulse_position_variation_func'](rtt_distance),
         }[params['mode']]()
         return var
@@ -413,9 +414,11 @@ class Processor:
         params = self.nearfield_correction
         var = {
             'AM': lambda: (-approximate_model(rtt_distance, params['d1'], params['d2'])
-                           * 4 * np.pi * self.center_freq * self.refractive_index / C0),
+                           * 4 * np.pi * self.center_freq / C0),
+            'AM2': lambda: approximate_model_2_phase(
+                rtt_distance, params['d1'], params['d2'], 2 * np.pi * self.center_freq / C0),
             'PM': lambda: (-gen_parametric_model(rtt_distance, params['a_tot'], params['r_off'])
-                           * 4 * np.pi * self.center_freq * self.refractive_index / C0),
+                           * 4 * np.pi * self.center_freq / C0),
             'func': lambda: params['pulse_phase_variation_func'](rtt_distance),
         }[params['mode']]()
         return var

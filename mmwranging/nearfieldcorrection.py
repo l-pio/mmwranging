@@ -11,6 +11,18 @@ def approximate_model(distance, d1, d2):
     return (d1**2 + d2**2) / (16 * distance)
 
 
+def approximate_model_2_phase(distance, d1, d2, k):
+    """Calculate the variation of pulse phase using the modified approximate model."""
+    offset = k**2 * (d1**4 + d2**4) / (768 * distance)  # Dispersive offset from geometric centers
+    return -k * (d1**2 + d2**2) / (8 * (distance + offset))
+
+
+def approximate_model_2_position(distance, d1, d2, k):
+    """Calculate the variation of pulse position using the modified approximate model."""
+    offset = k**2 * (d1**4 + d2**4) / (768 * distance)  # Dispersive offset from geometric centers
+    return (d1**2 + d2**2) * (distance - offset) / (8 * C0 * (distance + offset)**2)
+
+
 def gen_parametric_model(distance, a_tot, r_off):
     """Calculate the distance variation using the generalized parametric model."""
     return a_tot / (4 * np.pi * (distance + r_off))

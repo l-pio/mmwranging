@@ -20,18 +20,24 @@ if __name__ == '__main__':
     # Set model for near-field correction
     nfcsim_data = np.load('./nfcsim_data/nfcsim_%dmm_z=20mm.npz' % target_diameter)
     nfc_model = {
+        # No near-field correction
         None: lambda: None,
+        # Approximate model
         'AM': lambda: dict(mode='AM', d1=36E-3, d2=target_diameter / 1E3, rtt_offset=500E-12),
+        # Approximate model taking into account the "phase center variation in the Fresnel region"
+        'AM2': lambda: dict(mode='AM2', d1=36E-3, d2=target_diameter / 1E3, rtt_offset=500E-12),
+        # Parametric model
         'PM': lambda: dict(
             mode='PM',
             a_tot={20: 12.4E-4, 30: 16.6E-4, 40: 22.2E-4, 50: 31.2E-4}[target_diameter],
             r_off={20: -10.2E-2, 30: -6.1E-2, 40: 0.8E-2, 50: 11.9E-2}[target_diameter]),
+        # Simulation model
         'SM': lambda: dict(
             mode='func',
             pulse_position_variation_func=interp1d(nfcsim_data['r'] - 20E-3, nfcsim_data['pulse_position_variation']),
             pulse_phase_variation_func=interp1d(nfcsim_data['r'] - 20E-3, nfcsim_data['pulse_phase_variation']),
             rtt_offset=700E-12)
-    }['PM']()  # None: no near-field correction / 'AM': approx. model / 'PM': parametric model / 'SM': simulation model
+    }['PM']()
 
     # Initialize mmwRanging processor
     proc = mmwranging.Processor(
