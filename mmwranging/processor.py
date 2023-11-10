@@ -107,7 +107,7 @@ class Processor:
     @cached_property
     def td_data(self):
         """Time-domain data."""
-        fd = np.asarray(self.if_data, np.complex)
+        fd = np.asarray(self.if_data, complex)
 
         # Flip downchirp data
         if self.sl_downchirps is not None:
