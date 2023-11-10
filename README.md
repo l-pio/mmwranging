@@ -6,21 +6,28 @@
 ## Citations
 If the provided code helps your research, please cite the following articles on which the package is based:
 
-1.  ```
+1. ```
+    L. Piotrowsky,
+    "Accurate Distance Measurement with Ultra-Wideband mmWave Radar: A Proof of Concept,"
+    Ph.D. dissertation, Ruhr University Bochum
+    Jul. 2023, doi: 10.13154/294-10689.
+    ```
+    [Link](https://doi.org/10.13154/294-10689)
+2. ```
     L. Piotrowsky, S. Kueppers, T. Jaeschke, N. Pohl,
     "Distance Measurement Using mmWave Radar: Micron Accuracy at Medium Range,"
-    accepted for publication in IEEE Transactions on Microwave Theory and Techniques,
+    in IEEE Transactions on Microwave Theory and Techniques,
     Aug. 2022, doi: 10.1109/TMTT.2022.3195235.
     ```
     [Link](https://ieeexplore.ieee.org/document/9865998)
-2.  ```
+3. ```
     L. Piotrowsky, J. Barowski and N. Pohl,
     "Near-Field Effects on Micrometer Accurate Ranging With Ultra-Wideband mmWave Radar,"
     in IEEE Antennas and Wireless Propagation Letters, vol. 21, no. 5, pp. 938-942,
     May 2022, doi: 10.1109/LAWP.2022.3152558.
     ```
     [Link](https://ieeexplore.ieee.org/document/9716857)
-3.  ```
+4. ```
     L. Piotrowsky, T. Jaeschke, S. Kueppers, J. Siska and N. Pohl,
     "Enabling High Accuracy Distance Measurements With FMCW Radar Sensors,"
     in IEEE Transactions on Microwave Theory and Techniques, vol. 67, no. 12, pp. 5360-5371,
