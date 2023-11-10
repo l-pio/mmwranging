@@ -2,6 +2,10 @@ import numpy as np
 from numpy.linalg import norm
 
 
+C0 = 299792458
+Z0 = 376.730313667
+
+
 def approximate_model(distance, d1, d2):
     """Calculate the distance variation using the approximate model."""
     return (d1**2 + d2**2) / (16 * distance)
@@ -45,9 +49,6 @@ class PPVSimulator:
     - The reference point of the antenna (P1) is always (0,0,0) and the antenna aperture is in the xy-plane.
     - The target meshgrid is referenced to the reference point of the target (P2)
     """
-    c0 = 299792458
-    z0 = 376.730313667
-
     def __init__(self, **kwargs):
         """Initialize a new simulation instance."""
         # Antenna & target
@@ -148,7 +149,7 @@ class PPVSimulator:
         self.init_aif(freqs, coordinates, efields, area)
 
     def init_aif(self, freqs, coordinates, efields, area):
-        """Initialize transmitted E-fields on antenna aperture plane (xy-plane) and init meshgrid."""
+        """Initialize transmitted E-fields on antenna aperture plane (xy-plane) and initialize meshgrid."""
         # Check whether E-fields are in the xy-plane
         for idx in range(1, len(coordinates)):
             if not np.allclose(coordinates[0][2], coordinates[idx][2]):
@@ -165,26 +166,31 @@ class PPVSimulator:
         meshcells = self.meshgrid_ant.shape[0]
         self.meshgrid_ant_density = meshcells / area
 
-    def init_homogenous_aif(self, freqs, shape, dimension, z_offset=0, polarization='x'):
-        """Initialize a homogenously illuminated AIF and initialize the antenna meshgrid."""
+    def init_homogeneous_aif(self, freqs, shape, dimension, polarization='x', focal_length=np.inf):
+        """Initialize a homogeneously illuminated AIF (xy-plane) and initialize meshgrid."""
         # Compute meshgrid
-        wavelength_min = min(self.c0 / self.freqs)
-        self.meshgrid_ant, self.meshgrid_ant_density = self.generate_meshgrid(
-            shape, dimension, self.meshgrid_spacing * wavelength_min
-        )
+        wavelength_min = min(C0 / freqs)
+        meshgrid, meshgrid_density = self.generate_meshgrid(shape, dimension, self.meshgrid_spacing * wavelength_min)
+        area = meshgrid.shape[0] / meshgrid_density
 
-        # Translate meshgrid
-        self.ant_z_offset = z_offset
-        self.meshgrid_ant = self.meshgrid_ant + np.asarray([0, 0, self.ant_z_offset])
+        # Set homogeneous amplitude distribution with respect to the polarization
+        aif = np.ones([len(freqs), len(meshgrid), 3], dtype=complex) * {'x': [1, 0, 0], 'y': [0, 1, 0]}[polarization]
 
-        # Homogeneously illuminated antenna aperture of given polarization
-        self.freqs = freqs
-        self.aif = np.full(len(self.meshgrid_ant), {'x': [1, 0, 0], 'y': [0, 1, 0]}[polarization])
+        # Compute phase distribution for the given focal length
+        # focal_length=np.inf: hom. phase, focal_length > 0: focused aperture, focal_length < 0: diverged aperture
+        if focal_length is not np.inf:
+            path_difference = norm(meshgrid - np.asarray([0, 0, focal_length]), axis=-1) - abs(focal_length)
+            sign = 1 if focal_length >= 0 else -1
+            for idx, k in enumerate(2 * np.pi * freqs / C0):
+                aif[idx] = (aif[idx].T * np.exp(1j * sign * k * path_difference)).T
+
+        # Initialize AIF
+        self.init_aif(freqs, meshgrid, aif, area)
 
     def init_target_meshgrid(self, shape, dimension, position=None):
         """Initialize the target meshgrid in the xy-plane at a given position."""
         # Compute meshgrid
-        wavelength_min = min(self.c0 / self.freqs)
+        wavelength_min = min(C0 / self.freqs)
         self.meshgrid_tar, self.meshgrid_tar_density = self.generate_meshgrid(
             shape, dimension, self.meshgrid_spacing * wavelength_min
         )
@@ -242,20 +248,20 @@ class PPVSimulator:
             m_ant_ = np.repeat(m_ant[:, np.newaxis, :], self.meshgrid_tar.shape[0], axis=1)
 
             # Wavenumber and greens function
-            k = 2 * np.pi * freq / self.c0
+            k = 2 * np.pi * freq / C0
             g = np.exp(-1j * k * norm(r, axis=-1)) / (4 * np.pi * norm(r, axis=-1))
             g_ = np.repeat(g[:, :, np.newaxis], 3, axis=2)
 
             # Equivalent electric surface current density on the target with dimension meshgrid_tar.shape
             integrand = np.cross(er, np.cross(er, m_ant_)) * g_
             integral = np.sum(integrand, axis=0) / self.meshgrid_tar_density
-            j_tar = np.cross(2 * 1j * k * self.n2 / self.z0, integral)
+            j_tar = np.cross(2 * 1j * k * self.n2 / Z0, integral)
             j_tar_ = np.repeat(j_tar[np.newaxis, :, :], self.meshgrid_ant.shape[0], axis=0)
 
             # Receiving E-field on the antenna with dimension meshgrid_ant.shape
             integrand = np.cross(er, np.cross(er, j_tar_)) * g_
             integral = np.sum(integrand, axis=1) / self.meshgrid_ant_density
-            e_re = 1j * k * self.z0 * integral
+            e_re = 1j * k * Z0 * integral
 
             # Reflection coefficient
             integrand_num = np.array([np.vdot(a, b) for a, b in zip(e_tr, e_re)])
@@ -265,13 +271,13 @@ class PPVSimulator:
             self.reflection_coefficient = -integral_num / integral_den
 
             # Reflection coefficient of reference
-            distance = norm(self.r0) - self.ant_z_offset
+            distance = norm(self.r0 - [0, 0, self.ant_z_offset])
             phase_term = -np.exp(-1j * k * 2 * distance)
             if self.antenna_gain is not None and self.target_rcs is not None:
                 # Taking the amplitude term into account
                 antenna_gain_lin = 10**(self.antenna_gain / 10)  # dBi to linear units
                 target_rcs_lin = 10**(self.target_rcs / 10)  # dBsm to linear units
-                wavelength = self.c0 / freq
+                wavelength = C0 / freq
                 amplitude_term = antenna_gain_lin * wavelength / distance**2 * np.sqrt(target_rcs_lin / (4 * np.pi)**3)
             else:
                 # Taking the amplitude term not into account

@@ -53,7 +53,7 @@ if __name__ == '__main__':
     ax2.set_ylabel('Amplitude Gain Factor (dB)')
 
     # Save data
-    if True:
+    if False:
         np.savez('./nfcsim_data/nfcsim_%dmm_z=%dmm.npz' % (int(target_diameter * 1E3), int(z_offset * 1E3)),
                  r=r,
                  pulse_position_variation=pulse_position_variation,
