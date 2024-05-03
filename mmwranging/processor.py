@@ -389,11 +389,16 @@ class Processor:
         refractivity = {
             None: lambda: 0,
             'MPM93': lambda: np.real(mpm93(self.center_freq, self.temp_data, self.press_data, self.hum_data)),
+            # Note: Group refractive index for MPM93 is not yet implemented!
             'S&W53': lambda: smith_weintraub1953(self.temp_data, self.press_data, self.hum_data),
-            'EQ1': lambda: eq1(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
-            'EQ2': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
-            'EQ3': lambda: eq3(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
-            'dband': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data),
+            'EQ1': lambda: eq1(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data,
+                               group_ri=not self.use_phase),
+            'EQ2': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data,
+                               group_ri=not self.use_phase),
+            'EQ3': lambda: eq3(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data,
+                               group_ri=not self.use_phase),
+            'dband': lambda: eq2(self.center_freq, self.temp_data, self.press_data, self.hum_data, self.co2_conc_data,
+                                 group_ri=not self.use_phase),
         }[self.refractive_index_model]()
         return 1 + refractivity * 1E-6
 
@@ -476,7 +481,7 @@ class Processor:
         """Update measured if-data.
 
         Parameters:
-        - if_data -- measured real-valued if-data of dimension MxN
+        - if_data: measured real-valued if-data of dimension MxN
         """
         self.if_data = np.asarray(if_data)
         if self.if_data.ndim == 1:
@@ -491,10 +496,11 @@ class Processor:
         """Update measured atmospheric data.
 
         Parameters:
-        - temp_data: air temperture (K)
+        - temp_data: air temperature (K)
         - press_data: air pressure (Pa)
         - hum_data: humidity (%)
-        - co2_conc_data: carbon dioxide concentration (0...1)"""
+        - co2_conc_data: carbon dioxide concentration (0...1)
+        """
         # Mean values if input data are arrays
         if temp_data is not None:
             self.temp_data = np.mean(temp_data)

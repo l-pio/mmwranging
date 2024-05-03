@@ -21,7 +21,7 @@ def saturation_vapour_pressure(temp):
     return es
 
 
-def five_term_eq(freq, temp, press, hum, co2_conc, k):
+def five_term_eq(freq, temp, press, hum, co2_conc, k, group_ri=False):
     """Compute the refractivity using a five-term equation with parameters k[0...4].
 
     Parameters:
@@ -31,12 +31,14 @@ def five_term_eq(freq, temp, press, hum, co2_conc, k):
     - hum: rel. humidity (%)
     - co2_conc: carbon dioxide concentration (0...1)
     - k: parameters of equation
+    - group_ri: compute group (refractive) index
     """
     es = saturation_vapour_pressure(temp)
     pw = es * hum / 100
     pc = press * co2_conc
     pd = press - pw - pc
-    return k[0] * pd / temp + k[1] * pw / temp + k[2] * pw / temp ** 2 + k[3] * pc / temp + k[4] * pw / temp * freq
+    n_freq = k[4] * pw / temp * freq * (1 if group_ri is False else 2)  # Frequency-dependent term
+    return k[0] * pd / temp + k[1] * pw / temp + k[2] * pw / temp ** 2 + k[3] * pc / temp + n_freq
 
 
 def smith_weintraub1953(temp, press, hum):
@@ -54,7 +56,7 @@ def smith_weintraub1953(temp, press, hum):
     return five_term_eq(0, temp, press, hum, 0, k)
 
 
-def eq1(freq, temp, press, hum, co2_conc=None):
+def eq1(freq, temp, press, hum, co2_conc=None, group_ri=False):
     """Compute the mmWave refractivity of atmosphere using Equation 1 (75...110 GHz).
 
     Parameters:
@@ -63,16 +65,17 @@ def eq1(freq, temp, press, hum, co2_conc=None):
     - press: pressure (Pa)
     - hum: rel. humidity (%)
     - co2_conc: carbon dioxide concentration (0...1)
+    - group_ri: compute group (refractive) index
 
     Notes:
     - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
     k = [0.7754, 0.5786, 3768, 1.335, 1.181E-12]
-    return five_term_eq(freq, temp, press, hum, co2_conc, k)
+    return five_term_eq(freq, temp, press, hum, co2_conc, k, group_ri)
 
 
-def eq2(freq, temp, press, hum, co2_conc=None):
+def eq2(freq, temp, press, hum, co2_conc=None, group_ri=False):
     """Compute the mmWave refractivity of atmosphere using Equation 2 (110...170 GHz).
 
     Parameters:
@@ -81,16 +84,17 @@ def eq2(freq, temp, press, hum, co2_conc=None):
     - press: pressure (Pa)
     - hum: rel. humidity (%)
     - co2_conc: carbon dioxide concentration (0...1)
+    - group_ri: compute group (refractive) index
 
     Notes:
     - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
     k = [0.7756, 0.3656, 3808, 1.335, 1.862E-12]
-    return five_term_eq(freq, temp, press, hum, co2_conc, k)
+    return five_term_eq(freq, temp, press, hum, co2_conc, k, group_ri)
 
 
-def eq3(freq, temp, press, hum, co2_conc=None):
+def eq3(freq, temp, press, hum, co2_conc=None, group_ri=False):
     """Compute the mmWave refractivity of atmosphere using Equation 3 (200...300 GHz).
 
     Parameters:
@@ -99,13 +103,14 @@ def eq3(freq, temp, press, hum, co2_conc=None):
     - press: pressure (Pa)
     - hum: rel. humidity (%)
     - co2_conc: carbon dioxide concentration (0...1)
+    - group_ri: compute group (refractive) index
 
     Notes:
     - Optimized to: 0.9...1.1 bar, 0...50°C, 0...100% RH.
     """
     co2_conc = 400E-6 if co2_conc is None else co2_conc
     k = [0.7757, -0.3928, 3931, 1.335, 3.323E-12]
-    return five_term_eq(freq, temp, press, hum, co2_conc, k)
+    return five_term_eq(freq, temp, press, hum, co2_conc, k, group_ri)
 
 
 def mpm93(freq, temp, press, hum):
